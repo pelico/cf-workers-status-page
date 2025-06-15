@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务状态监控</title>
+    <style>
+        :root {
+            --up-color: #4CAF50;
+            --down-color: #F44336;
+            --checking-color: #FFC107;
+        }
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eaeaea;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .status-time {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .service {
+            background: white;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 15px;
+        }
+        .status-up { background-color: var(--up-color); }
+        .status-down { background-color: var(--down-color); }
+        .status-checking { background-color: var(--checking-color); }
+        .service-info {
+            flex-grow: 1;
+        }
+        .service-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .service-status {
+            font-size: 0.9em;
+        }
+        .service-url {
+            font-size: 0.8em;
+            color: #7f8c8d;
+            word-break: break-all;
+        }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>服务状态监控</h1>
+        <div class="status-time">最后更新: <span id="update-time">正在检查...</span></div>
+    </header>
+    
+    <main id="services-container">
+        <!-- 服务状态将动态显示在这里 -->
+    </main>
+    
+    <footer>
+        <p>监控系统 • 自动更新</p>
+    </footer>
+
+    <script>
+        // 监控的服务列表
+        const services = [
+            { name: "Google", url: "https://www.google.com" },
+            { name: "GitHub API", url: "https://api.github.com" },
+            { name: "Cloudflare", url: "https://www.cloudflare.com" }
+        ];
+        
+        // 更新状态时间
+        function updateStatusTime() {
+            const now = new Date();
+            document.getElementById('update-time').textContent = 
+                `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+        }
+        
+        // 检查服务状态
+        async function checkServiceStatus(service) {
+            const serviceId = service.name.replace(/\s+/g, '-').toLowerCase();
+            let serviceElement = document.getElementById(serviceId);
+            
+            // 创建元素如果不存在
+            if (!serviceElement) {
+                serviceElement = document.createElement('div');
+                serviceElement.className = 'service';
+                serviceElement.id = serviceId;
+                serviceElement.innerHTML = `
+                    <div class="status-indicator status-checking"></div>
+                    <div class="service-info">
+                        <div class="service-name">${service.name}</div>
+                        <div class="service-status">正在检查...</div>
+                        <div class="service-url">${service.url}</div>
+                    </div>
+                `;
+                document.getElementById('services-container').appendChild(serviceElement);
+            }
+            
+            // 更新状态为检查中
+            const indicator = serviceElement.querySelector('.status-indicator');
+            const statusText = serviceElement.querySelector('.service-status');
+            indicator.className = 'status-indicator status-checking';
+            statusText.textContent = '正在检查...';
+            
+            try {
+                const startTime = Date.now();
+                // 使用HEAD方法减少数据传输
+                const response = await fetch(service.url, { 
+                    method: 'HEAD',
+                    cache: 'no-cache'
+                });
+                
+                const responseTime = Date.now() - startTime;
+                indicator.className = 'status-indicator status-up';
+                statusText.textContent = `✅ 运行正常 (${responseTime}ms)`;
+                statusText.style.color = 'var(--up-color)';
+            } catch (error) {
+                indicator.className = 'status-indicator status-down';
+                statusText.textContent = '❌ 服务中断';
+                statusText.style.color = 'var(--down-color)';
+            }
+        }
+        
+        // 初始化监控
+        async function initMonitoring() {
+            updateStatusTime();
+            
+            // 立即检查所有服务
+            await Promise.all(services.map(service => checkServiceStatus(service)));
+            
+            // 每分钟更新一次
+            setInterval(() => {
+                updateStatusTime();
+                services.forEach(service => checkServiceStatus(service));
+            }, 60000);
+        }
+        
+        // 页面加载完成后启动监控
+        window.addEventListener('DOMContentLoaded', initMonitoring);
+    </script>
+</body>
+</html>
